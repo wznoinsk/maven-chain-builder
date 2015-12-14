@@ -2,28 +2,86 @@
 
 from configobj import ConfigObj
 import git
+from glob import glob
 import os
+import shutil
 import sys
 
 # Constants
 SEPARATORS = ['?', '#']
 
-def clone_scm(scm_url):
-    for sep in SEPARATORS:
-        if sep in scm_url:
-            git_url = scm_url.split(sep, 1)[0]
-            break
-    # Clone git repo
-    if not os.path.exists((git_url.split('/')[-1]).split('.git')[0]):
+def clone_project(git_url, project, directory):
+    """ Clone git repo """
+    start_wd = os.getcwd()
+    os.chdir(directory)
+    if not os.path.exists(project):
+        print "Cloning: {proj}".format(proj = project)
         git.Git().clone(git_url)
+    os.chdir(start_wd)
+
+def get_project_name(url):
+    return (url.split('.git')[0]).split('/')[-1]
+
+def get_branch(url):
+    if 'opendaylight.git' in url:
+        return sys.argv[3]
+    else:
+        return sys.argv[2]
+    #return (url.split('#')[1])
+
+def get_git_url(url):
+    for sep in SEPARATORS:
+        if sep in url:
+            url = url.split(sep)[0]
+    return url
+
+def get_subdir(url):
+    return (url.split('?')[1]).split('#')[0]
+
+def checkout(branch, project, directory):
+    start_wd = os.getcwd()
+    os.chdir(directory)
+    (git.Git(project)).checkout(branch)
+    os.chdir(start_wd)
+
+def apply_patch(patch_dir, project, patch_repo_name):
+    start_wd = os.getcwd()
+    os.chdir(project)
+    proj = git.Repo(project)
+    patches = glob(patch_dir + '/*.patch')
+    for p in patches:
+        print('Arie is gay, and the patch is: {}'.format(p))
+        proj.git.execute(['git', 'apply', p])
+    shutil.rmtree('/tmp/' + patch_repo_name)
+    os.chdir(start_wd)
+
+def clone_patch(url, project_path):
+    start_wd = os.getcwd()
+    patch_url = get_git_url(url)
+    patch_project_name = get_project_name(url)
+    patch_branch = get_branch(url)
+    subdir = get_subdir(url)
+    patch_path = '/tmp/' + patch_project_name + '/' + subdir
+    clone_project(patch_url, patch_project_name, '/tmp')
+    print "Cloning patch: {patchProj}".format(patchProj = patch_project_name)
+    checkout(patch_branch, patch_project_name, '/tmp')
+    apply_patch(patch_path, project_path, patch_project_name)
+    os.chdir(start_wd)
+
+def set_jvm_options(value):
+    os.environ["MAVEN_OPTS"] = value
+
+def build(project, build_cmd):
+    start_wd = os.getcwd()
+    os.chdir(project)
+    print "Entered {proj}".format(proj = project)
+    print "Running build!"
+    os.system(build_cmd)
+    os.chdir(start_wd)
 
 # ===== Main =====
-# Create ConfigParser instance
-#Config = ConfigParser.ConfigParser()
-
 # Read config file
-config = ConfigObj(sys.argv[1])
-#Config.read(sys.argv[1])
+config = ConfigObj(sys.argv[1], list_values=False, _inspec=True)
 
 # Set bomversion if it exists in config file
 if config['DEFAULT']['bomversion']:
@@ -31,26 +89,33 @@ if config['DEFAULT']['bomversion']:
 
 # Parse options
 for section in config.sections:
+    print "----------------------------------"
+    skip_build = False
     build_cmd = "mvn deploy -DaltDeploymentRepository=tmp::default::file:///tmp"
     if section == 'DEFAULT':
         bomversion = config['DEFAULT']['bomversion']
+        skip_build = True
     for option in config[section]:
         if option == 'scmurl':
-#           clone_scm(Config.get(section, option))
-            print "Cloning"
-        if option == 'dependencyManagement':
-            build_cmd = build_cmd + " -DdependencyManagement={depManage}".format(depManage=config[section][option])
-        if option == 'groovyScripts':
-            build_cmd = build_cmd + " -DgroovyScripts={groovy}".format(groovy=config[section][option])
-        if option == 'pluginManagement':
-            build_cmd = build_cmd + " -DpluginManagement={plugManage}".format(plugManage=config[section][option])
-        if option == 'checkstyle.skip':
-            build_cmd = build_cmd + " -Dcheckstyle.skip={chkStyleSkip}".format(chkStyleSkip=config[section][option])
-        if option == 'maven.javadoc.skip':
-            build_cmd = build_cmd + " -Dmaven.javadoc.skip={javadocSkip}".format(javadocSkip=config[section][option])
-        if option == 'version.suffix':
-            build_cmd = build_cmd + " -Dversion.suffix={verSuffix}".format(verSuffix=config[section][option])
-
-    with open("build.sh", "a") as build_file:
-        build_file.write(build_cmd + "\n")
-    print build_cmd
+            project_name = get_project_name(config[section][option])
+            print "Project name: {projName}".format( projName = project_name )
+            branch = get_branch(config[section][option])
+            print "Branch to checkout: {branch}".format( branch = branch )
+            git_url = get_git_url(config[section][option])
+            print "Cloning: {gitUrl}".format( gitUrl = git_url )
+            project_path = os.path.expanduser('~')
+            clone_project(git_url, project_name, project_path)
+            checkout(branch, project_name, project_path)
+        if option == 'skipTests':
+            build_cmd = build_cmd + " -DskipTests"
+        if option == 'buildrequires':
+            pass
+        if option == 'patches':
+            clone_patch(config[section][option], project_path + '/' + project_name)
+        if option == 'jvm_options':
+            set_jvm_options(config[section][option])
+        else:
+            build_cmd = build_cmd + " -D{option}={value}".format(option=option, value=config[section][option])
+    if not skip_build:
+        skip_build = False
+        build(project_path, build_cmd)
