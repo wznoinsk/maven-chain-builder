@@ -9,6 +9,7 @@ import sys
 
 # Constants
 SEPARATORS = ['?', '#']
+SPECIAL_OPTIONS = [ 'scmurl', 'patches','skipTests','buildrequires','jvm_options' ]
 
 def clone_project(git_url, project, directory):
     """ Clone git repo """
@@ -74,6 +75,7 @@ def set_jvm_options(value):
 def build(project, build_cmd):
     start_wd = os.getcwd()
     os.chdir(project)
+    print "The build command is: {buildCmd}".format(buildCmd=build_cmd)
     print "Entered {proj}".format(proj = project)
     print "Running build!"
     os.system(build_cmd)
@@ -96,24 +98,25 @@ for section in config.sections:
         bomversion = config['DEFAULT']['bomversion']
         skip_build = True
     for option in config[section]:
-        if option == 'scmurl':
-            project_name = get_project_name(config[section][option])
-            print "Project name: {projName}".format( projName = project_name )
-            branch = get_branch(config[section][option])
-            print "Branch to checkout: {branch}".format( branch = branch )
-            git_url = get_git_url(config[section][option])
-            print "Cloning: {gitUrl}".format( gitUrl = git_url )
-            project_path = os.path.expanduser('~')
-            clone_project(git_url, project_name, project_path)
-            checkout(branch, project_name, project_path)
-        if option == 'skipTests':
-            build_cmd = build_cmd + " -DskipTests"
-        if option == 'buildrequires':
-            pass
-        if option == 'patches':
-            clone_patch(config[section][option], project_path + '/' + project_name)
-        if option == 'jvm_options':
-            set_jvm_options(config[section][option])
+        if option in SPECIAL_OPTIONS:
+            if option == 'scmurl':
+                project_name = get_project_name(config[section][option])
+                print "Project name: {projName}".format( projName = project_name )
+                branch = get_branch(config[section][option])
+                print "Branch to checkout: {branch}".format( branch = branch )
+                git_url = get_git_url(config[section][option])
+                print "Cloning: {gitUrl}".format( gitUrl = git_url )
+                project_path = os.path.expanduser('~')
+                clone_project(git_url, project_name, project_path)
+                checkout(branch, project_name, project_path)
+            if option == 'skipTests':
+                build_cmd = build_cmd + " -DskipTests"
+            if option == 'buildrequires':
+                pass
+            if option == 'patches':
+                clone_patch(config[section][option], project_path + '/' + project_name)
+            if option == 'jvm_options':
+                set_jvm_options(config[section][option])
         else:
             build_cmd = build_cmd + " -D{option}={value}".format(option=option, value=config[section][option])
     if not skip_build:
