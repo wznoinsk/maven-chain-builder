@@ -72,11 +72,15 @@ def clone_patch(url, project_path):
 def set_jvm_options(value):
     os.environ["MAVEN_OPTS"] = value
 
-def build(project, build_cmd):
+def build(project, build_cmd, subdir):
+    if subdir:
+        build_path = project + '/' + subdir
+    else:
+        build_path = project
     start_wd = os.getcwd()
     os.chdir(project)
     print "The build command is: {buildCmd}".format(buildCmd=build_cmd)
-    print "Entered {proj}".format(proj = project)
+    print "Entered {buildDir}".format(buildDir = build_path)
     print "Running build!"
     os.system(build_cmd)
     os.chdir(start_wd)
@@ -93,6 +97,7 @@ if config['DEFAULT']['bomversion']:
 for section in config.sections:
     print "----------------------------------"
     skip_build = False
+    project_subdir=None
     build_cmd = "mvn deploy -DaltDeploymentRepository=tmp::default::file:///tmp"
     if section == 'DEFAULT':
         bomversion = config['DEFAULT']['bomversion']
@@ -106,9 +111,11 @@ for section in config.sections:
                 print "Branch to checkout: {branch}".format( branch = branch )
                 git_url = get_git_url(config[section][option])
                 print "Cloning: {gitUrl}".format( gitUrl = git_url )
-                project_path = os.path.expanduser('~')
+                project_path = os.path.expanduser('~') + '/' + project_name
                 clone_project(git_url, project_name, project_path)
                 checkout(branch, project_name, project_path)
+                if '?' in config[section][option] :
+                    project_subdir = get_subdir(config[section][option])
             if option == 'skipTests':
                 build_cmd = build_cmd + " -DskipTests"
             if option == 'buildrequires':
@@ -121,4 +128,4 @@ for section in config.sections:
             build_cmd = build_cmd + " -D{option}={value}".format(option=option, value=config[section][option])
     if not skip_build:
         skip_build = False
-        build(project_path, build_cmd)
+        build(project_path, build_cmd, project_subdir)
