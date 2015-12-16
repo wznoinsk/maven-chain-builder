@@ -14,7 +14,7 @@ SPECIAL_OPTIONS = [ 'scmurl', 'patches','skipTests','buildrequires','jvm_options
 def clone_project(git_url, project, directory):
     """ Clone git repo """
     start_wd = os.getcwd()
-    os.chdir(directory)
+    os.chdir('/home/' + sys.argv[4])
     if not os.path.exists(project):
         print "Cloning: {proj}".format(proj = project)
         git.Git().clone(git_url)
@@ -41,7 +41,7 @@ def get_subdir(url):
 
 def checkout(branch, project, directory):
     start_wd = os.getcwd()
-    os.chdir(directory)
+    os.chdir('/home/' + sys.argv[4])
     (git.Git(project)).checkout(branch)
     os.chdir(start_wd)
 
@@ -111,7 +111,7 @@ for section in config.sections:
                 print "Branch to checkout: {branch}".format( branch = branch )
                 git_url = get_git_url(config[section][option])
                 print "Cloning: {gitUrl}".format( gitUrl = git_url )
-                project_path = os.path.expanduser('~') + '/' + project_name
+                project_path = '/home/' + sys.argv[4] + '/' + project_name
                 clone_project(git_url, project_name, project_path)
                 checkout(branch, project_name, project_path)
                 if '?' in config[section][option] :
