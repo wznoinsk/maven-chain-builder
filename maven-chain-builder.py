@@ -14,7 +14,7 @@ SPECIAL_OPTIONS = [ 'scmurl', 'patches','skipTests','buildrequires','jvm_options
 def clone_project(git_url, project, directory):
     """ Clone git repo """
     start_wd = os.getcwd()
-    os.chdir('/home/' + sys.argv[4])
+    os.chdir(directory)
     if not os.path.exists(project):
         print "Cloning: {proj}".format(proj = project)
         git.Git().clone(git_url)
@@ -24,11 +24,7 @@ def get_project_name(url):
     return (url.split('.git')[0]).split('/')[-1]
 
 def get_branch(url):
-    if 'opendaylight.git' in url:
-        return sys.argv[3]
-    else:
-        return sys.argv[2]
-    #return (url.split('#')[1])
+    return (url.split('#')[1])
 
 def get_git_url(url):
     for sep in SEPARATORS:
@@ -41,7 +37,7 @@ def get_subdir(url):
 
 def checkout(branch, project, directory):
     start_wd = os.getcwd()
-    os.chdir('/home/' + sys.argv[4])
+    os.chdir('/home/' + sys.argv[2])
     (git.Git(project)).checkout(branch)
     os.chdir(start_wd)
 
@@ -111,8 +107,9 @@ for section in config.sections:
                 print "Branch to checkout: {branch}".format( branch = branch )
                 git_url = get_git_url(config[section][option])
                 print "Cloning: {gitUrl}".format( gitUrl = git_url )
-                project_path = '/home/' + sys.argv[4] + '/' + project_name
-                clone_project(git_url, project_name, project_path)
+                project_path = '/home/' + sys.argv[2] + '/' + project_name
+                project_top_dir = '/home/' + sys.argv[2]
+                clone_project(git_url, project_name, project_top_dir)
                 checkout(branch, project_name, project_path)
                 if '?' in config[section][option] :
                     project_subdir = get_subdir(config[section][option])
@@ -121,7 +118,7 @@ for section in config.sections:
             if option == 'buildrequires':
                 pass
             if option == 'patches':
-                clone_patch(config[section][option], project_path + '/' + project_name)
+                clone_patch(config[section][option], project_path)
             if option == 'jvm_options':
                 set_jvm_options(config[section][option])
         else:
