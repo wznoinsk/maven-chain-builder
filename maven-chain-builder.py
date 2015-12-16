@@ -74,7 +74,7 @@ def build(project, build_cmd, subdir):
     else:
         build_path = project
     start_wd = os.getcwd()
-    os.chdir(project)
+    os.chdir(build_path)
     print "The build command is: {buildCmd}".format(buildCmd=build_cmd)
     print "Entered {buildDir}".format(buildDir = build_path)
     print "Running build!"
