@@ -117,6 +117,8 @@ for section in config.sections:
                 build_cmd = build_cmd + " -DskipTests"
             if option == 'buildrequires':
                 pass
+            if option == 'maven_options':
+                build_cmd = build_cmd + config[section][option]
             if option == 'patches':
                 clone_patch(config[section][option], project_path)
             if option == 'jvm_options':
