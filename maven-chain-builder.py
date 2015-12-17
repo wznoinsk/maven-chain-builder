@@ -9,7 +9,8 @@ import sys
 
 # Constants
 SEPARATORS = ['?', '#']
-SPECIAL_OPTIONS = [ 'scmurl', 'patches','skipTests','buildrequires','jvm_options' ]
+SPECIAL_OPTIONS = [ 'scmurl', 'patches','skipTests','buildrequires',
+                    'jvm_options', 'maven_options' ]
 
 def clone_project(git_url, project, directory):
     """ Clone git repo """
@@ -114,17 +115,17 @@ for section in config.sections:
                 if '?' in config[section][option] :
                     project_subdir = get_subdir(config[section][option])
             if option == 'skipTests':
-                build_cmd = build_cmd + "-DskipTests"
+                build_cmd = build_cmd + "-DskipTests "
             if option == 'buildrequires':
                 pass
             if option == 'maven_options':
-                build_cmd = build_cmd + config[section][option]
+                build_cmd = build_cmd + config[section][option] + " "
             if option == 'patches':
                 clone_patch(config[section][option], project_path)
             if option == 'jvm_options':
                 set_jvm_options(config[section][option])
         else:
-            build_cmd = build_cmd + "-D{option}={value}".format(option=option, value=config[section][option])
+            build_cmd = build_cmd + "-D{option}={value} ".format(option=option, value=config[section][option])
     if not skip_build:
         skip_build = False
         build(project_path, build_cmd, project_subdir)
