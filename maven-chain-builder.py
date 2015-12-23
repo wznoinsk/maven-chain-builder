@@ -93,6 +93,10 @@ config = ConfigObj(sys.argv[1], list_values=False, _inspec=True)
 if config['DEFAULT']['bomversion']:
     bomversion = config['DEFAULT']['bomversion']
 
+# Set globally git username and email
+os.system("git config --global user.name MavenBuild")
+os.system("git config --global user.email MavenBuild@itsame.mario")
+
 # Parse options
 for section in config.sections:
     print "----------------------------------"
