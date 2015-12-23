@@ -38,7 +38,7 @@ def get_subdir(url):
 
 def checkout(branch, project, directory):
     start_wd = os.getcwd()
-    os.chdir('/home/' + sys.argv[2])
+    os.chdir(directory)
     (git.Git(project)).checkout(branch)
     os.chdir(start_wd)
 
@@ -46,10 +46,12 @@ def apply_patch(patch_dir, project, patch_repo_name):
     start_wd = os.getcwd()
     os.chdir(project)
     proj = git.Repo(project)
+    print "Looking for patches in {}".format(patch_dir)
     patches = glob(patch_dir + '/*.patch')
+    print "The patches are {}".format(patches)
     for p in patches:
-        print('Arie is gay, and the patch is: {}'.format(p))
-        proj.git.execute(['git', 'apply', p])
+        print('Applying patch: {} in {}'.format(p, project))
+        proj.git.execute(['git', 'am', p])
     shutil.rmtree('/tmp/' + patch_repo_name)
     os.chdir(start_wd)
 
@@ -63,6 +65,7 @@ def clone_patch(url, project_path):
     clone_project(patch_url, patch_project_name, '/tmp')
     print "Cloning patch: {patchProj}".format(patchProj = patch_project_name)
     checkout(patch_branch, patch_project_name, '/tmp')
+    print "Checked out: {}".format(patch_branch)
     apply_patch(patch_path, project_path, patch_project_name)
     os.chdir(start_wd)
 
@@ -111,7 +114,7 @@ for section in config.sections:
                 project_path = '/home/' + sys.argv[2] + '/' + project_name
                 project_top_dir = '/home/' + sys.argv[2]
                 clone_project(git_url, project_name, project_top_dir)
-                checkout(branch, project_name, project_path)
+                checkout(branch, project_name, project_top_dir)
                 if '?' in config[section][option] :
                     project_subdir = get_subdir(config[section][option])
             if option == 'skipTests':
