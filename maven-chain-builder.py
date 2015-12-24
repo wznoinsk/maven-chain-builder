@@ -12,7 +12,7 @@ import sys
 # Constants
 SEPARATORS = ['?', '#']
 SPECIAL_OPTIONS = [ 'scmurl', 'patches','skipTests','buildrequires',
-                    'jvm_options', 'maven_options' ]
+                    'jvm_options', 'maven_options', 'type' ]
 RAND_DIR_NAME_LENGTH = 5
 
 def clone_project(git_url, project, directory):
@@ -137,6 +137,8 @@ for section in config.sections:
                 build_cmd = build_cmd + "-DskipTests "
             if option == 'buildrequires':
                 pass
+            if option == 'type' and config[section][option] == 'wrapper':
+               skip_build = True
             if option == 'maven_options':
                 build_cmd = build_cmd + config[section][option] + " "
             if option == 'patches':
