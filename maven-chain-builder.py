@@ -120,7 +120,7 @@ for section in config.sections:
                 git_url = get_git_url(config[section][option])
                 print "Cloning: {gitUrl}".format( gitUrl = git_url )
                 project_path = rand_dir + '/' + project_name
-                project_top_dir = rand_dir + '/' + sys.argv[2]
+                project_top_dir = rand_dir
                 clone_project(git_url, project_name, project_top_dir)
                 checkout(branch, project_name, project_top_dir)
                 if '?' in config[section][option] :
