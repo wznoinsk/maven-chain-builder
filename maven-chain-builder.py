@@ -88,6 +88,14 @@ def build(project, build_cmd, subdir):
     os.system(build_cmd)
     os.chdir(start_wd)
 
+def create_random_directory(start_path):
+    rand_string = ''.join(random.choice(string.letters + string.digits) for _ in range(5))
+    rand_dir = start_path + '/' + rand_string
+    if not os.path.exists(rand_dir):
+        os.makedirs(rand_dir)
+        return rand_dir
+    else: return ""
+
 # ===== Main =====
 # Read config file
 config = ConfigObj(sys.argv[1], list_values=False, _inspec=True)
@@ -106,7 +114,7 @@ for section in config.sections:
     skip_build = False
     project_subdir=None
     build_cmd = "mvn deploy -DaltDeploymentRepository=tmp::default::file:///tmp "
-    rand_dir = '/tmp/' + ''.join(random.choice(string.letters + string.digits) for _ in range(5))
+    rand_dir = create_random_directory('/tmp')
     if section == 'DEFAULT':
         bomversion = config['DEFAULT']['bomversion']
         skip_build = True
@@ -140,3 +148,4 @@ for section in config.sections:
     if not skip_build:
         skip_build = False
         build(project_path, build_cmd, project_subdir)
+    shutil.rmtree(rand_dir)
