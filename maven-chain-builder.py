@@ -4,13 +4,16 @@ from configobj import ConfigObj
 import git
 from glob import glob
 import os
+import random
 import shutil
+import string
 import sys
 
 # Constants
 SEPARATORS = ['?', '#']
 SPECIAL_OPTIONS = [ 'scmurl', 'patches','skipTests','buildrequires',
                     'jvm_options', 'maven_options' ]
+RAND_DIR_NAME_LENGTH = 5
 
 def clone_project(git_url, project, directory):
     """ Clone git repo """
@@ -103,6 +106,7 @@ for section in config.sections:
     skip_build = False
     project_subdir=None
     build_cmd = "mvn deploy -DaltDeploymentRepository=tmp::default::file:///tmp "
+    rand_dir = '/tmp/' + ''.join(random.choice(string.letters + string.digits) for _ in range(5))
     if section == 'DEFAULT':
         bomversion = config['DEFAULT']['bomversion']
         skip_build = True
@@ -115,8 +119,8 @@ for section in config.sections:
                 print "Branch to checkout: {branch}".format( branch = branch )
                 git_url = get_git_url(config[section][option])
                 print "Cloning: {gitUrl}".format( gitUrl = git_url )
-                project_path = '/home/' + sys.argv[2] + '/' + project_name
-                project_top_dir = '/home/' + sys.argv[2]
+                project_path = rand_dir + '/' + project_name
+                project_top_dir = rand_dir + '/' + sys.argv[2]
                 clone_project(git_url, project_name, project_top_dir)
                 checkout(branch, project_name, project_top_dir)
                 if '?' in config[section][option] :
