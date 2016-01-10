@@ -3,6 +3,7 @@
 from configobj import ConfigObj
 import git
 from glob import glob
+import logging
 import os
 import random
 import shutil
@@ -15,12 +16,13 @@ SPECIAL_OPTIONS = [ 'scmurl', 'patches','skipTests','buildrequires',
                     'jvm_options', 'maven_options', 'type' ]
 RAND_DIR_NAME_LENGTH = 5
 
+
 def clone_project(git_url, project, directory):
     """ Clone git repo """
     start_wd = os.getcwd()
     os.chdir(directory)
     if not os.path.exists(project):
-        print "Cloning: {proj}".format(proj = project)
+        logger.info('Cloning: %s', project)
         git.Git().clone(git_url)
     os.chdir(start_wd)
 
@@ -49,11 +51,11 @@ def apply_patch(patch_dir, project, patch_repo_name):
     start_wd = os.getcwd()
     os.chdir(project)
     proj = git.Repo(project)
-    print "Looking for patches in {}".format(patch_dir)
+    logger.info('Looking for patches in %s', patch_dir)
     patches = glob(patch_dir + '/*.patch')
-    print "The patches are {}".format(patches)
+    logger.info('The patches are %s', patches)
     for p in patches:
-        print('Applying patch: {} in {}'.format(p, project))
+        logger.info('Applying patch %s in %s', p, project)
         proj.git.execute(['git', 'am', p])
     shutil.rmtree('/tmp/' + patch_repo_name)
     os.chdir(start_wd)
@@ -66,14 +68,23 @@ def clone_patch(url, project_path):
     subdir = get_subdir(url)
     patch_path = '/tmp/' + patch_project_name + '/' + subdir
     clone_project(patch_url, patch_project_name, '/tmp')
-    print "Cloning patch: {patchProj}".format(patchProj = patch_project_name)
+    logger.info('Cloning patch: %s', patch_project_name)
     checkout(patch_branch, patch_project_name, '/tmp')
-    print "Checked out: {}".format(patch_branch)
+    logger.info('Checked out %s', patch_branch)
     apply_patch(patch_path, project_path, patch_project_name)
     os.chdir(start_wd)
 
 def set_jvm_options(value):
     os.environ["MAVEN_OPTS"] = value
+
+def setup_logger():
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler('/var/log/maven-chain-builder.log')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
 
 def build(project, build_cmd, subdir):
     if subdir:
@@ -82,10 +93,10 @@ def build(project, build_cmd, subdir):
         build_path = project
     start_wd = os.getcwd()
     os.chdir(build_path)
-    print "The build command is: {buildCmd}".format(buildCmd=build_cmd)
-    print "Entered {buildDir}".format(buildDir = build_path)
-    print "Running build!"
-    os.system(build_cmd)
+    logger.info('The build command is: %s', build_cmd)
+    logger.info('Entered %s', build_path)
+    logger.info('Running build!')
+    os.system(build_cmd + " >> /var/log/maven-chain-builder.log")
     os.chdir(start_wd)
 
 def create_random_directory(start_path):
@@ -97,20 +108,25 @@ def create_random_directory(start_path):
     else: return ""
 
 # ===== Main =====
+logger = setup_logger()
+
 # Read config file
+logger.info("Reading config file")
 config = ConfigObj(sys.argv[1], list_values=False, _inspec=True)
 
 # Set bomversion if it exists in config file
 if config['DEFAULT']['bomversion']:
+    logger.info("Setting bomversion")
     bomversion = config['DEFAULT']['bomversion']
 
 # Set globally git username and email
+logger.info("Setting globally git username and user email")
 os.system("git config --global user.name MavenBuild")
 os.system("git config --global user.email MavenBuild@itsame.mario")
 
 # Parse options
 for section in config.sections:
-    print "----------------------------------"
+    logger.info('====================== %s ====================', section)
     skip_build = False
     project_subdir=None
     build_cmd = "mvn deploy -DaltDeploymentRepository=tmp::default::file:///tmp "
@@ -122,11 +138,11 @@ for section in config.sections:
         if option in SPECIAL_OPTIONS:
             if option == 'scmurl':
                 project_name = get_project_name(config[section][option])
-                print "Project name: {projName}".format( projName = project_name )
+                logger.info('Project name: %s', project_name)
                 branch = get_branch(config[section][option])
-                print "Branch to checkout: {branch}".format( branch = branch )
+                logger.info('Branch to checkout: %s', branch)
                 git_url = get_git_url(config[section][option])
-                print "Cloning: {gitUrl}".format( gitUrl = git_url )
+                logger.info('Cloning: %s', git_url)
                 project_path = rand_dir + '/' + project_name
                 project_top_dir = rand_dir
                 clone_project(git_url, project_name, project_top_dir)
