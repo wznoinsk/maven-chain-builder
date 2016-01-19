@@ -25,6 +25,7 @@ def clone_project(git_url, project, directory):
     if not os.path.exists(project):
         logger.info('Cloning: %s', project)
         git.Git().clone(git_url)
+    logger.info('Returning to: %s', start_wd)
     os.chdir(start_wd)
 
 def get_project_name(url):
@@ -48,6 +49,7 @@ def checkout(branch, project, directory):
     logger.info('Changed dir: %s', directory)
     logger.info('Checking out the branch: %s', branch)
     (git.Git(project)).checkout(branch)
+    logger.info('Returning to: %s', start_wd)
     os.chdir(start_wd)
 
 def apply_patch(patch_dir, project, patch_repo_name):
@@ -60,8 +62,9 @@ def apply_patch(patch_dir, project, patch_repo_name):
     logger.info('The patches are %s', patches)
     for p in patches:
         logger.info('Applying patch %s in %s', p, project)
-        proj.git.execute(['git', 'am', p])
+        proj.git.execute(['git', 'am', '--ignore-space-change', p])
     shutil.rmtree('/tmp/' + patch_repo_name)
+    logger.info('Returning to: %s', start_wd)
     os.chdir(start_wd)
 
 def clone_patch(url, project_path):
@@ -142,7 +145,6 @@ for section in config.sections:
                 project_name = get_project_name(config[section][option])
                 logger.info('Project name: %s', project_name)
                 branch = get_branch(config[section][option])
-                logger.info('Branch to checkout: %s', branch)
                 git_url = get_git_url(config[section][option])
                 project_path = rand_dir + '/' + project_name
                 logger.info('Project path: %s', project_path)
