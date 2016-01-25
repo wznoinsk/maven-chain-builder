@@ -91,7 +91,7 @@ def setup_logger(logger_name, logger_file):
     logger.addHandler(handler)
     return logger
 
-def build(project, build_cmd, subdir):
+def build(project, build_cmd, subdir, logger_file):
     if subdir:
         build_path = project + '/' + subdir
     else:
@@ -101,7 +101,7 @@ def build(project, build_cmd, subdir):
     logger.info('The build command is: %s', build_cmd)
     logger.info('Changed dir: %s', build_path)
     logger.info('Running build!')
-    os.system(build_cmd + " >> /var/log/maven-chain-builder.log")
+    os.system(build_cmd + " >> {logFile} 2>&1".format(logFile=logger_file))
     os.chdir(start_wd)
 
 def create_random_directory(start_path):
@@ -138,7 +138,8 @@ os.system("git config --global user.email MavenBuild@itsame.mario")
 # Parse options
 for section in config.sections:
     root_logger.info("Processing %s", section)
-    logger = setup_logger(section, '/var/log/maven/maven-chain-' + section)
+    logger_file = '/var/log/maven/maven-chain-' + section
+    logger = setup_logger(section, logger_file)
     logger.info('====================== %s ====================', section)
     skip_build = False
     project_subdir=None
@@ -177,5 +178,5 @@ for section in config.sections:
             build_cmd = build_cmd + "-D{option}={value} ".format(option=option, value=config[section][option])
     if not skip_build:
         skip_build = False
-        build(project_path, build_cmd, project_subdir)
+        build(project_path, build_cmd, project_subdir, logger_file)
     shutil.rmtree(rand_dir)
