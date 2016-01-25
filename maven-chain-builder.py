@@ -82,10 +82,10 @@ def set_jvm_options(value):
     logger.info('Setting MAVEN_OPTS to: %s', value)
     os.environ["MAVEN_OPTS"] = value
 
-def setup_logger():
-    logger = logging.getLogger(__name__)
+def setup_logger(logger_name, logger_file):
+    logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
-    handler = logging.FileHandler('/var/log/maven-chain-builder.log')
+    handler = logging.FileHandler(logger_file)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -113,24 +113,32 @@ def create_random_directory(start_path):
     else: return ""
 
 # ===== Main =====
-logger = setup_logger()
+if not os.path.exists('/var/log/maven'):
+    os.makedirs('/var/log/maven')
+root_logger = setup_logger('root','/var/log/maven/maven-chain-builder.log')
 
 # Read config file
-logger.info("Reading config file")
-config = ConfigObj(sys.argv[1], list_values=False, _inspec=True)
+root_logger.info("Reading config file")
+try:
+    config = ConfigObj(sys.argv[1], list_values=False, _inspec=True)
+except Exception as e:
+    print "No config file present"
+    sys.exit(2)
 
 # Set bomversion if it exists in config file
 if config['DEFAULT']['bomversion']:
-    logger.info("Setting bomversion")
+    root_logger.info("Setting bomversion")
     bomversion = config['DEFAULT']['bomversion']
 
 # Set globally git username and email
-logger.info("Setting globally git username and user email")
+root_logger.info("Setting globally git username and user email")
 os.system("git config --global user.name MavenBuild")
 os.system("git config --global user.email MavenBuild@itsame.mario")
 
 # Parse options
 for section in config.sections:
+    root_logger.info("Processing %s", section)
+    logger = setup_logger(section, '/var/log/maven/maven-chain-' + section)
     logger.info('====================== %s ====================', section)
     skip_build = False
     project_subdir=None
