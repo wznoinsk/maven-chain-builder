@@ -143,7 +143,7 @@ for section in config.sections:
     logger.info('====================== %s ====================', section)
     skip_build = False
     project_subdir=None
-    build_cmd = "mvn deploy -DaltDeploymentRepository=tmp::default::file:///tmp "
+    build_cmd = "mvn deploy -B -DaltDeploymentRepository=tmp::default::file:///tmp "
     rand_dir = create_random_directory('/tmp')
     if section == 'DEFAULT':
         bomversion = config['DEFAULT']['bomversion']
