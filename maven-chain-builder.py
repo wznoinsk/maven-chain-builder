@@ -125,11 +125,6 @@ except Exception as e:
     print "No config file present"
     sys.exit(2)
 
-# Set bomversion if it exists in config file
-if config['DEFAULT']['bomversion']:
-    root_logger.info("Setting bomversion")
-    bomversion = config['DEFAULT']['bomversion']
-
 # Set globally git username and email
 root_logger.info("Setting globally git username and user email")
 os.system("git config --global user.name MavenBuild")
@@ -146,7 +141,6 @@ for section in config.sections:
     build_cmd = "mvn deploy -B -q -DaltDeploymentRepository=tmp::default::file:///tmp "
     rand_dir = create_random_directory('/tmp')
     if section == 'DEFAULT':
-        bomversion = config['DEFAULT']['bomversion']
         skip_build = True
     for option in config[section]:
         if option in SPECIAL_OPTIONS:
