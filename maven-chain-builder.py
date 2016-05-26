@@ -37,7 +37,7 @@ def get_branch(url):
 def get_git_url(url):
     for sep in SEPARATORS:
         if sep in url:
-            url = url.split(sep)[0]
+            url = (url.split(sep)[0]).split('+git')[1]
     return url
 
 def get_subdir(url):
