@@ -37,7 +37,7 @@ def get_branch(url):
 def get_git_url(url):
     for sep in SEPARATORS:
         if sep in url:
-            url = url.split(sep)[0]
+            url = (url.split(sep)[0]).split('+git')[1]
     return url
 
 def get_subdir(url):
@@ -112,6 +112,10 @@ def create_random_directory(start_path):
         return rand_dir
     else: return ""
 
+def replace_project(patched_project, original_project):
+    shutil.rmtree(original_project)
+    shutil.copytree(patched_project, original_project)
+
 # ===== Main =====
 if not os.path.exists('/var/log/maven'):
     os.makedirs('/var/log/maven')
@@ -124,6 +128,9 @@ try:
 except Exception as e:
     print "No config file present"
     sys.exit(2)
+
+# Set patched project name
+patched_project_path = '/tmp/patched/' + sys.argv[2]
 
 # Set globally git username and email
 root_logger.info("Setting globally git username and user email")
@@ -164,6 +171,8 @@ for section in config.sections:
                skip_build = True
             if option == 'maven_options':
                 build_cmd = build_cmd + config[section][option] + " "
+            if patched_project == sys.argv[2]:
+                replace_project(patched_project_path, project_path)
             if option == 'patches':
                 clone_patch(config[section][option], project_path)
             if option == 'jvm_options':
