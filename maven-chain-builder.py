@@ -31,7 +31,7 @@ def clone_project(git_url, project, directory):
 def get_project_name(url):
     return (url.split('.git')[0]).split('/')[-1]
 
-def get_branch(url):
+def get_commit(url):
     return (url.split('#')[1])
 
 def get_git_url(url):
@@ -43,12 +43,12 @@ def get_git_url(url):
 def get_subdir(url):
     return (url.split('?')[1]).split('#')[0]
 
-def checkout(branch, project, directory):
+def checkout(commit, project, directory):
     start_wd = os.getcwd()
     os.chdir(directory)
     logger.info('Changed dir: %s', directory)
-    logger.info('Checking out the branch: %s', branch)
-    (git.Git(project)).checkout(branch)
+    logger.info('Checking out the commit: %s', commit)
+    (git.Git(project)).checkout(commit)
     logger.info('Returning to: %s', start_wd)
     os.chdir(start_wd)
 
@@ -70,12 +70,12 @@ def apply_patch(patch_dir, project, patch_repo_name):
 def clone_patch(url, project_path):
     patch_url = get_git_url(url)
     patch_project_name = get_project_name(url)
-    patch_branch = get_branch(url)
+    patch_commit = get_commit(url)
     subdir = get_subdir(url)
     patch_path = '/tmp/' + patch_project_name + '/' + subdir
     clone_project(patch_url, patch_project_name, '/tmp')
-    logger.info('Checking out the branch: %s', patch_branch)
-    checkout(patch_branch, patch_project_name, '/tmp')
+    logger.info('Checking out the commit: %s', patch_commit)
+    checkout(patch_commit, patch_project_name, '/tmp')
     apply_patch(patch_path, project_path, patch_project_name)
 
 def set_jvm_options(value):
@@ -122,10 +122,10 @@ if not os.path.exists('/var/log/maven'):
 root_logger = setup_logger('root','/var/log/maven/maven-chain-builder.log')
 
 # Read config file
-root_logger.info("Reading config file")
+root_logger.info("Reading config file {}".format(sys.argv[1]))
 try:
-    config = ConfigObj(sys.argv[1], list_values=False, _inspec=True)
-except Exception as e:
+    config = ConfigObj(sys.argv[1], list_values=False, _inspec=True,  file_error=True)
+except:
     print "No config file present"
     sys.exit(2)
 
@@ -153,14 +153,14 @@ for section in config.sections:
         if option in SPECIAL_OPTIONS:
             if option == 'scmurl':
                 project_name = get_project_name(config[section][option])
-                logger.info('Project name: %s', project_name)
-                branch = get_branch(config[section][option])
+                logger.info('The Project name is: %s', project_name)
+                commit = get_commit(config[section][option])
                 git_url = get_git_url(config[section][option])
                 project_path = rand_dir + '/' + project_name
                 logger.info('Project path: %s', project_path)
                 project_top_dir = rand_dir
                 clone_project(git_url, project_name, project_top_dir)
-                checkout(branch, project_name, project_top_dir)
+                checkout(commit, project_name, project_top_dir)
                 if '?' in config[section][option] :
                     project_subdir = get_subdir(config[section][option])
             if option == 'skipTests':
