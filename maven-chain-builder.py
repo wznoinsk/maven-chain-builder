@@ -37,7 +37,9 @@ def get_commit(url):
 def get_git_url(url):
     for sep in SEPARATORS:
         if sep in url:
-            url = (url.split(sep)[0]).split('+git')[1]
+            url = url.split(sep)[0]
+    if 'git+' in url:
+        url = url.split('git+')[1]
     return url
 
 def get_subdir(url):
@@ -112,9 +114,9 @@ def create_random_directory(start_path):
         return rand_dir
     else: return ""
 
-def replace_project(patched_project, original_project):
+def replace_project(patched_project_path, original_project):
     shutil.rmtree(original_project)
-    shutil.copytree(patched_project, original_project)
+    shutil.copytree(patched_project_path, original_project)
 
 # ===== Main =====
 if not os.path.exists('/var/log/maven'):
@@ -124,9 +126,9 @@ root_logger = setup_logger('root','/var/log/maven/maven-chain-builder.log')
 # Read config file
 root_logger.info("Reading config file {}".format(sys.argv[1]))
 try:
-    config = ConfigObj(sys.argv[1], list_values=False, _inspec=True,  file_error=True)
-except:
-    print "No config file present"
+    config = ConfigObj(sys.argv[1], list_values=False, _inspec=True, file_error=True)
+except Exception, e:
+    print str(e)
     sys.exit(2)
 
 # Set patched project name
@@ -171,7 +173,7 @@ for section in config.sections:
                skip_build = True
             if option == 'maven_options':
                 build_cmd = build_cmd + config[section][option] + " "
-            if patched_project == sys.argv[2]:
+            if patched_project_path == sys.argv[2]:
                 replace_project(patched_project_path, project_path)
             if option == 'patches':
                 clone_patch(config[section][option], project_path)
