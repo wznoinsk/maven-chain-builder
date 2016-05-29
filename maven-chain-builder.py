@@ -116,7 +116,9 @@ def create_random_directory(start_path):
 
 def replace_project(patched_project_path, original_project):
     shutil.rmtree(original_project)
+    logger.info('Removed the original project: {}'.format(original_project))
     shutil.copytree(patched_project_path, original_project)
+    logger.info('Copied patched project to: {}'.format(patched_project_path))
 
 # ===== Main =====
 if not os.path.exists('/var/log/maven'):
@@ -173,7 +175,8 @@ for section in config.sections:
                skip_build = True
             if option == 'maven_options':
                 build_cmd = build_cmd + config[section][option] + " "
-            if patched_project_path == sys.argv[2]:
+            if project_name == sys.argv[2]:
+                root_logger.info("Found patched project!. Replacing the original: {}".format(project_nmae))
                 replace_project(patched_project_path, project_path)
             if option == 'patches':
                 clone_patch(config[section][option], project_path)
@@ -184,4 +187,4 @@ for section in config.sections:
     if not skip_build:
         skip_build = False
         build(project_path, build_cmd, project_subdir, logger_file)
-    shutil.rmtree(rand_dir)
+#    shutil.rmtree(rand_dir)
