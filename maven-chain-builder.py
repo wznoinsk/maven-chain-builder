@@ -168,6 +168,9 @@ for section in config.sections:
                 checkout(commit, project_name, project_top_dir)
                 if '?' in config[section][option] :
                     project_subdir = get_subdir(config[section][option])
+                if project_name == sys.argv[2]:
+                    logger.info("Found match between current project and the patched project name!. Replacing the original: {}".format(project_name))
+                    replace_project(patched_project_path, project_path)
             if option == 'skipTests':
                 build_cmd = build_cmd + "-DskipTests "
             if option == 'buildrequires':
@@ -176,9 +179,6 @@ for section in config.sections:
                skip_build = True
             if option == 'maven_options':
                 build_cmd = build_cmd + config[section][option] + " "
-            if project_name == sys.argv[2]:
-                root_logger.info("Found match between current project and the patched project name!. Replacing the original: {}".format(project_nmae))
-                replace_project(patched_project_path, project_path)
             if option == 'patches':
                 clone_patch(config[section][option], project_path)
             if option == 'jvm_options':
