@@ -134,6 +134,7 @@ except Exception, e:
     sys.exit(2)
 
 # Set patched project name
+root_logger.info("Patched project is: {}".format(sys.argv[2]))
 patched_project_path = '/tmp/patched/' + sys.argv[2]
 
 # Set globally git username and email
@@ -176,7 +177,7 @@ for section in config.sections:
             if option == 'maven_options':
                 build_cmd = build_cmd + config[section][option] + " "
             if project_name == sys.argv[2]:
-                root_logger.info("Found patched project!. Replacing the original: {}".format(project_nmae))
+                root_logger.info("Found match between current project and the patched project name!. Replacing the original: {}".format(project_nmae))
                 replace_project(patched_project_path, project_path)
             if option == 'patches':
                 clone_patch(config[section][option], project_path)
