@@ -188,4 +188,4 @@ for section in config.sections:
     if not skip_build:
         skip_build = False
         build(project_path, build_cmd, project_subdir, logger_file)
-#    shutil.rmtree(rand_dir)
+    shutil.rmtree(rand_dir)
