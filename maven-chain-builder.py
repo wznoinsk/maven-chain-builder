@@ -1,6 +1,19 @@
 #!/usr/bin/env python
+# Copyright 2016 Arie Bregman
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
-from configobj import ConfigObj
+import ConfigParser
 import git
 from glob import glob
 import logging
@@ -12,13 +25,15 @@ import sys
 
 # Constants
 SEPARATORS = ['?', '#']
-SPECIAL_OPTIONS = [ 'scmurl', 'patches','skipTests','buildrequires',
-                    'jvm_options', 'maven_options', 'type' ]
+SPECIAL_OPTIONS = ['scmurl', 'patches', 'skipTests', 'buildrequires',
+                   'jvm_options', 'maven_options', 'type',
+                   'default_properties', 'properties']
+IGNORE_OPTIONS = ['redhat_version', 'bom_version']
 RAND_DIR_NAME_LENGTH = 5
 
 
-def clone_project(git_url, project, directory):
-    """ Clone git repo """
+def clone_project(git_url, project, directory, logger):
+    """Clone git repo """
     start_wd = os.getcwd()
     os.chdir(directory)
     logger.info('Changed dir: %s', directory)
@@ -28,11 +43,14 @@ def clone_project(git_url, project, directory):
     logger.info('Returning to: %s', start_wd)
     os.chdir(start_wd)
 
+
 def get_project_name(url):
     return (url.split('.git')[0]).split('/')[-1]
 
+
 def get_commit(url):
     return (url.split('#')[1])
+
 
 def get_git_url(url):
     for sep in SEPARATORS:
@@ -42,10 +60,12 @@ def get_git_url(url):
         url = url.split('git+')[1]
     return url
 
+
 def get_subdir(url):
     return (url.split('?')[1]).split('#')[0]
 
-def checkout(commit, project, directory):
+
+def checkout(commit, project, directory, logger):
     start_wd = os.getcwd()
     os.chdir(directory)
     logger.info('Changed dir: %s', directory)
@@ -54,7 +74,8 @@ def checkout(commit, project, directory):
     logger.info('Returning to: %s', start_wd)
     os.chdir(start_wd)
 
-def apply_patch(patch_dir, project, patch_repo_name):
+
+def apply_patch(patch_dir, project, patch_repo_name, logger):
     start_wd = os.getcwd()
     os.chdir(project)
     logger.info('Changed dir: %s', project)
@@ -69,20 +90,23 @@ def apply_patch(patch_dir, project, patch_repo_name):
     logger.info('Returning to: %s', start_wd)
     os.chdir(start_wd)
 
-def clone_patch(url, project_path):
+
+def clone_patch(url, project_path, logger):
     patch_url = get_git_url(url)
     patch_project_name = get_project_name(url)
     patch_commit = get_commit(url)
     subdir = get_subdir(url)
     patch_path = '/tmp/' + patch_project_name + '/' + subdir
-    clone_project(patch_url, patch_project_name, '/tmp')
+    clone_project(patch_url, patch_project_name, '/tmp', logger)
     logger.info('Checking out the commit: %s', patch_commit)
-    checkout(patch_commit, patch_project_name, '/tmp')
-    apply_patch(patch_path, project_path, patch_project_name)
+    checkout(patch_commit, patch_project_name, '/tmp', logger)
+    apply_patch(patch_path, project_path, patch_project_name, logger)
 
-def set_jvm_options(value):
+
+def set_jvm_options(value, logger):
     logger.info('Setting MAVEN_OPTS to: %s', value)
     os.environ["MAVEN_OPTS"] = value
+
 
 def setup_logger(logger_name, logger_file):
     logger = logging.getLogger(logger_name)
@@ -93,7 +117,8 @@ def setup_logger(logger_name, logger_file):
     logger.addHandler(handler)
     return logger
 
-def build(project, build_cmd, subdir, logger_file):
+
+def build(project, build_cmd, subdir, logger_file, logger):
     if subdir:
         build_path = project + '/' + subdir
     else:
@@ -106,86 +131,130 @@ def build(project, build_cmd, subdir, logger_file):
     os.system(build_cmd + " >> {logFile} 2>&1".format(logFile=logger_file))
     os.chdir(start_wd)
 
+
 def create_random_directory(start_path):
-    rand_string = ''.join(random.choice(string.letters + string.digits) for _ in range(5))
+    rand_string = ''.join(
+        random.choice(string.letters + string.digits) for _ in range(5))
     rand_dir = start_path + '/' + rand_string
     if not os.path.exists(rand_dir):
         os.makedirs(rand_dir)
         return rand_dir
-    else: return ""
+    else:
+        return ""
 
-def replace_project(patched_project_path, original_project):
+
+def replace_project(patched_project_path, original_project, logger):
     shutil.rmtree(original_project)
     logger.info('Removed the original project: {}'.format(original_project))
     shutil.copytree(patched_project_path, original_project)
     logger.info('Copied patched project to: {}'.format(patched_project_path))
 
-# ===== Main =====
-if not os.path.exists('/var/log/maven'):
-    os.makedirs('/var/log/maven')
-root_logger = setup_logger('root','/var/log/maven/maven-chain-builder.log')
 
-# Read config file
-root_logger.info("Reading config file {}".format(sys.argv[1]))
-try:
-    config = ConfigObj(sys.argv[1], list_values=False, _inspec=True, file_error=True)
-except Exception, e:
-    print str(e)
-    sys.exit(2)
+def read_config(config_f):
+    """Returns configuration."""
+    try:
+        config = ConfigParser.ConfigParser()
+        config.read(config_f)
+    except Exception as e:
+        print(str(e))
+        sys.exit(2)
 
-# Set patched project name
-root_logger.info("Patched project is: {}".format(sys.argv[2]))
-patched_project_path = '/tmp/patched/' + sys.argv[2]
+    return config
 
-# Set globally git username and email
-root_logger.info("Setting globally git username and user email")
-os.system("git config --global user.name MavenBuild")
-os.system("git config --global user.email MavenBuild@itsame.mario")
 
-# Parse options
-for section in config.sections:
-    root_logger.info("Processing %s", section)
-    logger_file = '/var/log/maven/maven-chain-' + section
-    logger = setup_logger(section, logger_file)
-    logger.info('====================== %s ====================', section)
-    skip_build = False
-    project_subdir=None
-    build_cmd = "mvn deploy -B -q -DaltDeploymentRepository=tmp::default::file:///tmp "
-    rand_dir = create_random_directory('/tmp')
-    if section == 'DEFAULT':
-        skip_build = True
-    for option in config[section]:
-        if option in SPECIAL_OPTIONS:
-            if option == 'scmurl':
-                project_name = get_project_name(config[section][option])
-                logger.info('The Project name is: %s', project_name)
-                commit = get_commit(config[section][option])
-                git_url = get_git_url(config[section][option])
-                project_path = rand_dir + '/' + project_name
-                logger.info('Project path: %s', project_path)
-                project_top_dir = rand_dir
-                clone_project(git_url, project_name, project_top_dir)
-                checkout(commit, project_name, project_top_dir)
-                if '?' in config[section][option] :
-                    project_subdir = get_subdir(config[section][option])
-                if project_name == sys.argv[2]:
-                    logger.info("Found match between current project and the patched project name!. Replacing the original: {}".format(project_name))
-                    replace_project(patched_project_path, project_path)
-            if option == 'skipTests':
-                build_cmd = build_cmd + "-DskipTests "
-            if option == 'buildrequires':
-                pass
-            if option == 'type' and config[section][option] == 'wrapper':
-               skip_build = True
-            if option == 'maven_options':
-                build_cmd = build_cmd + config[section][option] + " "
-            if option == 'patches':
-                clone_patch(config[section][option], project_path)
-            if option == 'jvm_options':
-                set_jvm_options(config[section][option])
-        else:
-            build_cmd = build_cmd + "-D{option}={value} ".format(option=option, value=config[section][option])
-    if not skip_build:
+def main():
+    """Main program loop."""
+    # Create logs dir and setup the main logger
+    if not os.path.exists('/var/log/maven'):
+        os.makedirs('/var/log/maven')
+    root_logger = setup_logger(
+        'root', '/var/log/maven/maven-chain-builder.log')
+
+    root_logger.info("Reading config file {}".format(sys.argv[1]))
+    config = read_config(sys.argv[1])
+
+    # Set patched project name
+    root_logger.info("Patched project is: {}".format(sys.argv[2]))
+    patched_project_path = '/tmp/patched/' + sys.argv[2]
+
+    # Set globally git username and email
+    root_logger.info("Setting globally git username and user email")
+    os.system("git config --global user.name MavenBuild")
+    os.system("git config --global user.email MavenBuild@itsame.mario")
+
+    # Parse chain file
+    for section in config.sections():
+
+        # Initialize section/build variables
         skip_build = False
-        build(project_path, build_cmd, project_subdir, logger_file)
-    shutil.rmtree(rand_dir)
+        build_cmd = "mvn deploy -B -q " + \
+            "-DaltDeploymentRepository=tmp::default::file:///tmp "
+        project_subdir = None
+        rand_dir = create_random_directory('/tmp')
+
+        # Handle section logging
+        root_logger.info(
+            "Processing section: %s. Creating new log file", section)
+        logger_file = '/var/log/maven/maven-chain-' + section
+        logger = setup_logger(section, logger_file)
+        logger.info('====================== %s ====================', section)
+
+        for option in config.options(section):
+            if option in SPECIAL_OPTIONS:
+                if option == 'scmurl':
+                    project_name = get_project_name(
+                        config.get(section, option))
+                    commit = get_commit(config.get(section, option))
+                    git_url = get_git_url(config.get(section, option))
+                    project_path = rand_dir + '/' + project_name
+                    project_top_dir = rand_dir
+                    clone_project(
+                        git_url, project_name, project_top_dir, logger)
+                    checkout(commit, project_name, project_top_dir, logger)
+                    if '?' in config.get(section, option):
+                        project_subdir = get_subdir(
+                            config.get(section, option))
+                    if project_name == sys.argv[2]:
+                        logger.info("Found match to the patched project name!.\
+                                    Replacing the original: {}".format(
+                                    project_name))
+                        replace_project(patched_project_path, project_path, logger)
+                    logger.info('Project name: %s', project_name)
+                    logger.info('Project path: %s', project_path)
+                if option == 'skipTests':
+                    build_cmd = build_cmd + "-DskipTests "
+                if option == 'buildrequires':
+                    pass
+                if option == 'type' and config.get(
+                   section, option) == 'wrapper':
+                    skip_build = True
+                if option == 'maven_options':
+                    build_cmd = build_cmd + config.get(section, option) + " "
+                if option == 'patches':
+                    clone_patch(
+                        config.get(section, option), project_path, logger)
+                if option == 'jvm_options':
+                    set_jvm_options(config.get(section, option), logger)
+                if option == 'default_properties' or option == 'properties':
+                    logger.info("Detected properties")
+                    properties = config.get(section, option)
+                    options = [y for y in (
+                        x.strip() for x in properties.splitlines()) if y]
+                    for opt in options:
+                        if opt == 'skipTests':
+                            build_cmd = build_cmd + "-DskipTests "
+                        else:
+                            build_cmd = build_cmd + "-D{} ".format(opt)
+            elif option not in IGNORE_OPTIONS:
+                build_cmd = build_cmd + "-D{option}={value} ".format(option=option, value=config.get(section, option))
+
+        # If the section is not 'DEFAULT', then build.
+        if not skip_build:
+            build(project_path, build_cmd, project_subdir, logger_file, logger)
+            skip_build = False
+
+        # Remove temp build dir
+        shutil.rmtree(rand_dir)
+
+if __name__ == '__main__':
+    main()
