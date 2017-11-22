@@ -22,6 +22,7 @@ import random
 import shutil
 import string
 import sys
+import time
 
 # Constants
 SEPARATORS = ['?', '#']
@@ -86,6 +87,9 @@ def apply_patch(patch_dir, project, patch_repo_name, logger):
     for p in patches:
         logger.info('Applying patch %s in %s', p, project)
         proj.git.execute(['git', 'am', '--ignore-space-change', p])
+        git_log = proj.git.execute(['git', 'log', '-5', '--pretty'])
+        logger.info('git log after applying patch: \n%s', git_log)
+
     shutil.rmtree('/tmp/' + patch_repo_name)
     logger.info('Returning to: %s', start_wd)
     os.chdir(start_wd)
@@ -128,12 +132,19 @@ def build(project, build_cmd, subdir, logger_file, logger):
     logger.info('The build command is: %s', build_cmd)
     logger.info('Changed dir: %s', build_path)
     logger.info('Running build!')
-    os.system(build_cmd + " >> {logFile} 2>&1".format(logFile=logger_file))
+    exit_code = os.system(build_cmd + " >> {logFile} 2>&1".format(logFile=logger_file))
+    if exit_code != 0:
+        msg="ERROR: Building of %s failed, stopping building the chain" % project
+        logger.info(msg)
+	print(msg)
+        sys.exit(2)
+    
     os.chdir(start_wd)
 
 
 def create_random_directory(start_path):
-    rand_string = ''.join(
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    rand_string = 'maven-chain-builder.' + timestamp + '.' + ''.join(
         random.choice(string.letters + string.digits) for _ in range(5))
     rand_dir = start_path + '/' + rand_string
     if not os.path.exists(rand_dir):
@@ -187,7 +198,7 @@ def main():
 
         # Initialize section/build variables
         skip_build = False
-        build_cmd = "mvn deploy -B -q " + \
+        build_cmd = "mvn deploy -ff -B -q -T 0.7C " + \
             "-DaltDeploymentRepository=tmp::default::file:///tmp "
         project_subdir = None
         rand_dir = create_random_directory('/tmp')
@@ -235,7 +246,7 @@ def main():
                         config.get(section, option), project_path, logger)
                 if option == 'jvm_options':
                     set_jvm_options(config.get(section, option), logger)
-                if option == 'default_properties' or option == 'properties':
+                if option == 'properties':
                     logger.info("Detected properties")
                     properties = config.get(section, option)
                     options = [y for y in (
