@@ -128,7 +128,13 @@ def build(project, build_cmd, subdir, logger_file, logger):
     logger.info('The build command is: %s', build_cmd)
     logger.info('Changed dir: %s', build_path)
     logger.info('Running build!')
-    os.system(build_cmd + " >> {logFile} 2>&1".format(logFile=logger_file))
+    exit_code = os.system(build_cmd + " >> {logFile} 2>&1".format(logFile=logger_file))
+    if exit_code != 0:
+        msg="ERROR: Building of %s failed, stopping building the chain" % project
+        logger.info(msg)
+	print(msg)
+        sys.exit(2)
+    
     os.chdir(start_wd)
 
 
@@ -187,7 +193,7 @@ def main():
 
         # Initialize section/build variables
         skip_build = False
-        build_cmd = "mvn deploy -B -q " + \
+        build_cmd = "mvn deploy -ff -B -q -T 0.7C" + \
             "-DaltDeploymentRepository=tmp::default::file:///tmp "
         project_subdir = None
         rand_dir = create_random_directory('/tmp')
@@ -235,7 +241,7 @@ def main():
                         config.get(section, option), project_path, logger)
                 if option == 'jvm_options':
                     set_jvm_options(config.get(section, option), logger)
-                if option == 'default_properties' or option == 'properties':
+                if option == 'properties':
                     logger.info("Detected properties")
                     properties = config.get(section, option)
                     options = [y for y in (
