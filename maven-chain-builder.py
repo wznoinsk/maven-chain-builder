@@ -198,7 +198,7 @@ def main():
 
         # Initialize section/build variables
         skip_build = False
-        build_cmd = "mvn deploy -ff -B -q -T 0.7C " + \
+        build_cmd = "mvn deploy -B -q -T 0.7C " + \
             "-DaltDeploymentRepository=tmp::default::file:///tmp "
         project_subdir = None
         rand_dir = create_random_directory('/tmp')
