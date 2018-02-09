@@ -198,7 +198,8 @@ def main():
 
         # Initialize section/build variables
         skip_build = False
-        build_cmd = "mvn deploy -B -q -T 0.7C " + \
+        # using -ff with mvn may lead to failures without a try to download deps from mead
+        build_cmd = "mvn deploy -B -q " + \
             "-DaltDeploymentRepository=tmp::default::file:///tmp "
         project_subdir = None
         rand_dir = create_random_directory('/tmp')
